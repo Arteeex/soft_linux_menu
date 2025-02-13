@@ -1,0 +1,113 @@
+#!/bin/bash
+#Программа вывода страницы с информацией системе
+
+PROGNAME="$(basename $0)"
+TITLE="System information Report for $HOSTNAME" 
+CURRENT_TIME=$(date +"%x %r %Z")
+TIME_STAMP="Generated $CURRENT_TIME, by $USER"
+
+report_uptime () {
+	cat <<- _EOF_
+		<h2>System uptime</h2>
+		<pre>$(uptime)</pre>
+		_EOF_
+	return
+}
+
+report_disk_space () {
+	cat <<- _EOF_
+		<h2>Disk Space Utilization</h2>
+		<pre>$(df -h)</pre>
+		_EOF_
+	return
+}
+
+report_temperature_system () {
+	cat <<- _EOF_
+		<h2>Temperature_system</h2>
+		<pre>$(watch -d -n 2 sensors)</pre>
+		_EOF_
+	return
+}
+
+usage () {
+	echo "$PROGNAME: usage: $PROGNAME [-f file | -i]"
+	return
+}
+
+write_html_page () {
+	cat << _EOF_
+	<html>
+		<head>
+			<title>$TITLE</title>
+ 		</head>
+		<body>
+ 			<h1>$TITLE</h1>
+			<p>$TIME_STAMP</p>
+			$(report_uptime)
+			$(report_disk_space)
+			$(report_temperature_system)
+		</body>
+	</html>
+_EOF_
+	return
+}
+
+#Обработка параметров командной строки
+
+interactive=
+filename=
+
+while [[ -n "$1" ]]; do
+	case "$1" in
+		-f | --file)		shift
+					filename="$1"
+					;;
+		-i | --interactive)	interactive=1
+					;;
+		-h | --help) 		usage
+					exit
+					;;
+		*)			usage >&2
+					exit 1
+					;;
+	esac
+	shift
+done
+
+#Интерактивный режим
+
+if [[ -n "$interactive" ]]; then
+	while true; do
+		read -p "Enter name of output file: "filename
+		if [[ -e "$filename" ]]; then
+			read -p "'$filename' exists. Owerwrite? [y/n/q] > "
+			case "$REPLY" in
+				Y|y) 	break
+					;;
+				Q|q) 	echo "Program terminated."
+					exit
+					;;
+				*)	continue
+					;;
+			esac
+		fi
+	done
+fi
+
+#Вывод страницы html
+
+if [[ -n "$filename" ]]; then
+	if touch "$filename" && [[ -f "$filename" ]]; then
+		write_html_page > "$filename"
+	else
+		echo "$PROGNAME: Cannot write file '$filename'" >&2
+		exit 1
+	fi
+else
+	write_html_page
+fi
+
+
+
+
